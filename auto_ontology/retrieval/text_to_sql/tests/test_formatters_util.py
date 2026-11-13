@@ -19,6 +19,14 @@ def test_collapse_ignores_identifier_case() -> None:
     assert qualify_table("analytics", "ANALYTICS", "orders") == "ANALYTICS.orders"
 
 
+def test_oracle_names_stop_at_the_schema() -> None:
+    """Oracle has no database level: ``db.schema.table`` is a syntax error there."""
+    assert qualify_table("FREEPDB1", "HR", "EMPLOYEES", "oracle") == "HR.EMPLOYEES"
+    assert qualify_table("HR", "HR", "EMPLOYEES", "Oracle") == "HR.EMPLOYEES"
+    # Every other two-level engine keeps the database unless it repeats the schema.
+    assert qualify_table("FREEPDB1", "HR", "EMPLOYEES") == "FREEPDB1.HR.EMPLOYEES"
+
+
 def test_keeps_catalog_when_schema_shares_its_name_on_spark() -> None:
     """A Kyuubi catalog and schema may share a name and stay distinct.
 

@@ -93,6 +93,12 @@ def _format_column_for_prompt(column: dict[str, Any], *, indent: str = "") -> st
 # the database and a two-part name resolves.
 _CATALOG_QUALIFIED_DIALECTS = frozenset({"spark", "trino"})
 
+# Dialects with no database level in a table name at all. An Oracle session is
+# already inside one database, and ``database.schema.table`` is not a spelling
+# of that table there: Oracle reads it as ``schema.table.column`` and rejects
+# the statement. The name the model copies has to stop at the schema.
+_DATABASE_UNQUALIFIED_DIALECTS = frozenset({"oracle"})
+
 
 def qualify_table(
     database_name: str,
@@ -118,7 +124,12 @@ def qualify_table(
     TABLE_OR_VIEW_NOT_FOUND. Scoping the session instead is not an option:
     Spark rejects ``USE CATALOG``, and ``SET CATALOG`` leaves
     ``current_schema()`` empty so the two-part name still does not resolve.
+
+    A dialect in :data:`_DATABASE_UNQUALIFIED_DIALECTS` (Oracle) never gets the
+    database part, whatever it is called.
     """
+    if (dialect or "").lower() in _DATABASE_UNQUALIFIED_DIALECTS:
+        return ".".join(part for part in (schema_name, table_name) if part)
     parts = [database_name, schema_name, table_name]
     collapsible = (dialect or "").lower() not in _CATALOG_QUALIFIED_DIALECTS
     if (
